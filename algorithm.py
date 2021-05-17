@@ -9,39 +9,33 @@ from matplotlib.ticker import FixedLocator
 from datetime import datetime
 from tqdm import tqdm
 import yaml
+import sys
 
 matplotlib.use(backend='Qt5Agg')
 
 Event = namedtuple('Event', ['delta_f', 'end_t'])
 Deflection = namedtuple('Deflection', ['delta_f', 'end_t'])
 
-with open('config.yaml') as f:
-    cfg = yaml.safe_load(f)
-
 
 class Config:
+    """ Оболочка файла конфигурации с контролем корректности введенных значений """
+
     try:
-        utility_frequency = cfg['utility_frequency']
+        with open('config.yaml') as f:
+            cfg = yaml.safe_load(f)
+
         assert type(cfg['f_jump_max']) == float, 'Значение скачка частоты должно быть числом с плавающей точкой'
-        f_jump_max = abs(cfg['f_jump_max'])
-        frequency_jump_values = np.arange(-cfg['f_jump_max'], cfg['f_jump_max'] + 0.1, 0.1)
         assert type(cfg['f_jump_duration_min']) in [int, float], 'Продолжительность скачка должна быть числом'
         assert type(cfg['f_jump_duration_max']) in [int, float], 'Продолжительность скачка должна быть числом'
         assert cfg['f_jump_duration_min'] > 0, 'Продолжительность скачка должна быть положительным числом'
         assert cfg['f_jump_duration_max'] > 0, 'Продолжительность скачка должна быть положительным числом'
-        frequency_jump_durations = np.arange(cfg['f_jump_duration_min'], cfg['f_jump_duration_max'], 1.0)
         assert type(cfg['jump_probability']) == float, 'Вероятность должна быть числом с плавающей точкой'
         assert 0 < cfg['jump_probability'] < 1, 'Вероятность должна находиться в диапазоне от 0 до 1'
-        jump_probability = cfg['jump_probability']
         assert type(cfg['step']) == float, 'Временной шаг должен быть числом с плавающей точкой'
         assert cfg['step'] <= 0.00002, '0.00002с - максимально возможное значение временного шага'
-        step = cfg['step']
         assert type(cfg['simulation_time']) in [int, float], 'Время симуляции должно быть числом'
         assert cfg['simulation_time'] > 0, 'Время симуляции должно быть положительным числом'
-        sim_time = cfg['simulation_time']
-        x_meshgrid = np.arange(0, sim_time, step).round(5)
         assert type(cfg['U_RMS']) in [int, float], 'Напряжение должно быть числом'
-        amplitude = abs(cfg['U_RMS']) * np.sqrt(2)
         assert type(cfg['phi0_min']) in [int, float], 'Значение фазы должно быть числом'
         assert type(cfg['phi0_max']) in [int, float], 'Значение фазы должно быть числом'
         assert 0 <= cfg['phi0_min'] < 360, 'phi0 должно находиться в диапазоне 0:359 ' \
@@ -49,23 +43,37 @@ class Config:
         assert 0 <= cfg['phi0_max'] < 360, 'phi0 должно находиться в диапазоне 0:359 ' \
                                            '(программно переводится в -180:+180)'
         assert cfg['phi0_min'] <= cfg['phi0_max'], 'phi0_min не может быть больше phi0_max'
-        phi0 = random.randint(cfg['phi0_min'], cfg['phi0_max'])
         assert type(cfg['f_max']) in [int, float], 'Значение граничной частоты должно быть числом'
         assert type(cfg['f_min']) in [int, float], 'Значение граничной частоты должно быть числом'
         assert cfg['f_max'] > 50.5, 'Верхняя граница частоты должна быть больше 50.5 Гц'
         assert cfg['f_min'] < 49.5, 'Нижняя граница частоты должна быть меньше 49.5 Гц'
+        assert type(cfg['RNG_seed']) == int or cfg['RNG_seed'] is None, 'Порождающий элемент ГСЧ - целое число или null'
+        assert type(cfg['control']) == bool, 'control может быть равен true или false'
+        assert type(cfg['enable_fill']) == bool, 'enable_fill может быть равен true или false'
+
+        utility_frequency = cfg['utility_frequency']
+        f_jump_max = abs(cfg['f_jump_max'])
+        frequency_jump_values = np.arange(-cfg['f_jump_max'], cfg['f_jump_max'] + 0.1, 0.1)
+        frequency_jump_durations = np.arange(cfg['f_jump_duration_min'], cfg['f_jump_duration_max'], 1.0)
+        jump_probability = cfg['jump_probability']
+        step = cfg['step']
+        sim_time = cfg['simulation_time']
+        x_meshgrid = np.arange(0, sim_time, step).round(5)
+        amplitude = abs(cfg['U_RMS']) * np.sqrt(2)
+        phi0 = random.randint(cfg['phi0_min'], cfg['phi0_max'])
         f_max = cfg['f_max']
         f_min = cfg['f_min']
-        assert type(cfg['RNG_seed']) == int or cfg['RNG_seed'] is None, 'Порождающий элемент ГСЧ - целое число или null'
         seed_value = cfg['RNG_seed']
-        assert type(cfg['control']) == bool, 'control может быть равен true или false'
         f_control = cfg['control']
-        assert type(cfg['enable_fill']) == bool, 'enable_fill может быть равен true или false'
         enable_fill = cfg['enable_fill']
+    except FileNotFoundError:
+        print('Файл "config.yaml" в текущей директории не обнаружен')
+        input('Enter - закрыть окно\n')
+        sys.exit()
     except AssertionError as e:
         print(f'Ошибка конфигурации: {e}')
         input('Enter - закрыть окно\n')
-        raise e
+        sys.exit()
 
 
 class DieselGenerator:
@@ -74,15 +82,14 @@ class DieselGenerator:
 
     def __init__(self, ampl: float, freq: float, phase: float):
         """
-
-        :param ampl:
-        :param freq:
-        :param phase: фаза (в градусах)
+        :param ampl: амплитуда выходного напряжения (В)
+        :param freq: частота в начале симуляции (Гц)
+        :param phase: начальная фаза (град.)
         """
         self.amplitude = ampl
         self.frequency = freq
         self.phase_0 = phase * np.pi / 180  # перевод в радианы
-        self.instantaneous = 0.0
+        self.instant = 0.0
         self.is_positive: bool = Config.phi0 > 0
         self.zero_transition: bool = False
         self.zero_transition_times = deque([], maxlen=2)
@@ -91,32 +98,27 @@ class DieselGenerator:
         self.frequency_changed: bool = False
         self.previous_f = freq
 
-    def calc_instant(self, c_time: float):
+    def calc_instant(self, global_time: float):
         """
         Вычисляет мгновенное значение напряжения на данной отметке времени
-        :param c_time: текущая временная отметка
+        :param global_time: текущая временная отметка
         """
 
         if self.frequency_changed:
             self.phase_0 = 2 * np.pi * self.previous_f * self.section_t + self.phase_0
             self.section_t = 0.0
 
-        # небольшое округление, ибо точность вычислений иногда приводит к числам в -16 степени вместо 0
-        self.instantaneous = self.amplitude * np.sin(2 * np.pi * self.frequency * self.section_t + self.phase_0).round(
-            10)
+        # округление, т.к. точность вычислений float иногда приводит к числам в -16 степени вместо 0
+        self.instant = self.amplitude * np.sin(2 * np.pi * self.frequency * self.section_t + self.phase_0).round(10)
         self.section_t += Config.step
-        self.__catch_zero_transition(c_time)
-        self.u.append(self.instantaneous)
+        self.__catch_zero_transition(global_time)
+        self.u.append(self.instant)
 
     def __catch_zero_transition(self, t: float):
-        """
-
-        :param t:
-        :return:
-        """
+        """ Устанавливает флаги для отслеживания переходов минус-плюс синусоиды """
         # Установка флага "произошел переход минус-плюс"
-        self.zero_transition = (not self.is_positive) and self.instantaneous >= 0
-        self.is_positive = self.instantaneous >= 0  # Установка флага "+ напряжение или -"
+        self.zero_transition = (not self.is_positive) and self.instant >= 0
+        self.is_positive = self.instant >= 0  # Установка флага "+ напряжение или -"
 
         # Сохранение времени перехода через 0
         if self.zero_transition:
@@ -137,10 +139,8 @@ class WorkingDGA(DieselGenerator):
         self.calculated_frequency = Config.utility_frequency
         self.f1_rand = []       # значения случайно генерируемой частоты напряжения ДГА1
         self.f1_calc = []
-        self.f_ignore_time = 0
-        self.phi_ignore_time = 0
 
-    def generate_frequency(self, c_time: float):
+    def generate_frequency(self, global_time: float):
         """ Генерация случайно изменяющейся частоты """
 
         self.previous_f = self.frequency  # сохранение предыдущего значения частоты
@@ -149,8 +149,8 @@ class WorkingDGA(DieselGenerator):
         jump = random.choices([True, False], weights=[1, 1 / Config.jump_probability])[0]
 
         # Определение списков завершающихся и еще активных скачков
-        ended_events: list[Event] = [item for item in self.event_list if item.end_t == c_time]
-        self.event_list = [item for item in self.event_list if item.end_t != c_time]
+        ended_events: list[Event] = [item for item in self.event_list if item.end_t == global_time]
+        self.event_list = [item for item in self.event_list if item.end_t != global_time]
 
         # Завершение скачков
         for item in ended_events:
@@ -161,7 +161,7 @@ class WorkingDGA(DieselGenerator):
             # чем сильнее скачок - тем меньше его вероятность
             weights = (Config.f_jump_max + 0.1 - abs(self.deltas_freq)) * 10
             delta_f = random.choices(self.deltas_freq, weights=weights)[0]
-            event = Event(delta_f=delta_f, end_t=c_time + random.choice(self.event_durations))
+            event = Event(delta_f=delta_f, end_t=global_time + random.choice(self.event_durations))
             self.event_list.append(event)
             self.frequency += event.delta_f
 
@@ -179,21 +179,14 @@ class WorkingDGA(DieselGenerator):
         self.jump = jump or jump_back
         self.frequency_changed = True if self.jump else False
 
-        if self.jump:
-            # Задание времени отстройки от "мертвых зон" при расчете частоты и сдвига фаз
-            # параметры в это время будут считаться равными последнему рассчитанному значению
-            self.f_ignore_time = c_time + 0.0
-            self.phi_ignore_time = c_time + 0.0
-
         self.f1_rand.append(self.frequency)  # Добавление сгенерированного значения частоты в соотв. список координат
 
-    def calculate_frequency(self, current_time: float):
+    def calculate_frequency(self, global_time: float):
         """ Расчет частоты f1 по переходам через 0 """
         # Частота f1 рассчитывается только в моменты перехода синусоиды минус-плюс и спустя время после скачка
         # иначе - берется равной предыдущему рассчитанному значению
         if all([self.zero_transition,
-                len(self.zero_transition_times) == 2,
-                current_time > self.f_ignore_time]):
+                len(self.zero_transition_times) == 2]):
             self.calculated_frequency = 1 / (self.zero_transition_times[1] - self.zero_transition_times[0])
             self.calculated_frequency = round(self.calculated_frequency, 1)
         else:
@@ -261,8 +254,7 @@ class StartingDGA(DieselGenerator):
         """  """
 
         if all([self.zero_transition,
-                len(self.zero_transition_times) == 2,
-                current_time > w_dga.phi_ignore_time]):
+                len(self.zero_transition_times) == 2]):
             period = self.zero_transition_times[1] - self.zero_transition_times[0]
             shift = self.zero_transition_times[1] - w_dga.zero_transition_times[1]
             self.d_phi = 2 * np.pi * shift / period
@@ -305,10 +297,10 @@ def main():
 
     for global_t in tqdm(DieselGenerator.x_axis, desc='Симуляция', ncols=110):
         dga1.generate_frequency(global_t)  # генерация случайной частоты
-        dga1.calc_instant(c_time=global_t)  # расчет u1
-        dga1.calculate_frequency(current_time=global_t)  # расчет частоты ДГА1
+        dga1.calc_instant(global_time=global_t)  # расчет u1
+        dga1.calculate_frequency(global_time=global_t)  # расчет частоты ДГА1
         dga2.calculate_frequency(dga1, global_t)  # расчет частоты ДГА2
-        dga2.calc_instant(c_time=global_t)  # расчет u2
+        dga2.calc_instant(global_time=global_t)  # расчет u2
         dga2.calculate_phase_shift(dga1, global_t)  # расчет фазового сдвига между ДГА2 и ДГА1
 
     if not dga2.synchronized:
@@ -338,6 +330,10 @@ def main():
     # Установка границ
     ax2.set_ylim(-200 * Config.amplitude, 200 * Config.amplitude)
     ax4.set_ylim(-180, 180)
+    ax1.set_xlim(0, Config.sim_time)
+    ax2.set_xlim(0, Config.sim_time)
+    ax3.set_xlim(0, Config.sim_time)
+    ax4.set_xlim(0, Config.sim_time)
 
     # Сетка, легенда, подписи осей
     ax1.grid()
@@ -378,8 +374,8 @@ def main():
                      color='#DCDCDC', alpha=0.65, where=(DieselGenerator.x_axis < dga2.synchro_time))
 
     # Произвольный текст на графике
-    ax2.text(0, Config.amplitude * 1.5, f'φ0 ДГА1 = {StartingDGA.convert_angle(Config.phi0)}°')
-    ax4.text(0, 0, f'φ0 ДГА1 = {StartingDGA.convert_angle(Config.phi0)}°')
+    ax2.text(-2.5, -Config.amplitude * 50, f'φ0 ДГА1 = {StartingDGA.convert_angle(Config.phi0)}°')
+    ax4.text(-2.5, -30, f'φ0 ДГА1 = {StartingDGA.convert_angle(Config.phi0)}°')
 
     # Настройка меток осей
     # ax1.yaxis.set_major_locator(MultipleLocator(0.2))
