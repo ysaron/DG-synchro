@@ -141,7 +141,7 @@ class WorkingDGA(DieselGenerator):
         self.f1_calc = []
 
     def generate_frequency(self, global_time: float):
-        """ Генерация случайно изменяющейся частоты """
+        """ Генерация случайно (скачками) изменяющейся частоты """
 
         self.previous_f = self.frequency  # сохранение предыдущего значения частоты
 
@@ -157,8 +157,7 @@ class WorkingDGA(DieselGenerator):
             self.frequency -= item.delta_f
 
         if jump:
-            # Определение параметров скачка частоты
-            # чем сильнее скачок - тем меньше его вероятность
+            # Определение параметров скачка частоты (чем сильнее скачок - тем меньше его вероятность)
             weights = (Config.f_jump_max + 0.1 - abs(self.deltas_freq)) * 10
             delta_f = random.choices(self.deltas_freq, weights=weights)[0]
             event = Event(delta_f=delta_f, end_t=global_time + random.choice(self.event_durations))
@@ -181,9 +180,9 @@ class WorkingDGA(DieselGenerator):
 
         self.f1_rand.append(self.frequency)  # Добавление сгенерированного значения частоты в соотв. список координат
 
-    def calculate_frequency(self, global_time: float):
+    def calculate_frequency(self):
         """ Расчет частоты f1 по переходам через 0 """
-        # Частота f1 рассчитывается только в моменты перехода синусоиды минус-плюс и спустя время после скачка
+        # Частота f1 рассчитывается только в моменты перехода синусоиды минус-плюс
         # иначе - берется равной предыдущему рассчитанному значению
         if all([self.zero_transition,
                 len(self.zero_transition_times) == 2]):
@@ -221,8 +220,8 @@ class StartingDGA(DieselGenerator):
             end_t = -self.d_phi * k + global_t
         self.deflection = Deflection(delta_f=delta_f, end_t=round(end_t, 2))
         tqdm.write(
-            f'\nРегулирование сдвига {round(self.d_phi, 1)}°.\nВводится отклонение f2 {self.deflection.delta_f} Гц '
-            f'длительностью до {self.deflection.end_t} с\n{"-" * 150}')
+            f'\nРегулирование сдвига: {round(self.d_phi, 1)}°\t|\tВводится отклонение f2: {self.deflection.delta_f} Гц'
+            f'; до момента времени: {self.deflection.end_t} с\n{"-" * 100}')
 
     def calculate_frequency(self, w_dga: WorkingDGA, current_time: float):
         self.previous_f = self.frequency  # сохранение предыдущего значения частоты
@@ -290,15 +289,19 @@ class StartingDGA(DieselGenerator):
 
 def main():
     start = datetime.now()
-    f_01 = random.choice(np.arange(-0.4, 0.5, 0.1)) + Config.utility_frequency
+
+    f_01 = random.choice(np.arange(-0.4, 0.5, 0.1)) + Config.utility_frequency      # Значение частоты ДГА1 в момент t0
     dga1 = WorkingDGA(ampl=Config.amplitude, freq=f_01, phase=Config.phi0)
     dga2 = StartingDGA(ampl=Config.amplitude, freq=Config.utility_frequency, phase=0)
-    tqdm.write(f'\nφ0 ДГА1 = {StartingDGA.convert_angle(Config.phi0)}°')
+
+    tqdm.write(f'\nВремя симуляции: {Config.sim_time} с')
+    tqdm.write(f'Регулирование фазового сдвига: {"да" if Config.f_control else "нет"}')
+    tqdm.write(f'φ0 ДГА1 = {StartingDGA.convert_angle(Config.phi0)}°')
 
     for global_t in tqdm(DieselGenerator.x_axis, desc='Симуляция', ncols=110):
         dga1.generate_frequency(global_t)  # генерация случайной частоты
         dga1.calc_instant(global_time=global_t)  # расчет u1
-        dga1.calculate_frequency(global_time=global_t)  # расчет частоты ДГА1
+        dga1.calculate_frequency()  # расчет частоты ДГА1
         dga2.calculate_frequency(dga1, global_t)  # расчет частоты ДГА2
         dga2.calc_instant(global_time=global_t)  # расчет u2
         dga2.calculate_phase_shift(dga1, global_t)  # расчет фазового сдвига между ДГА2 и ДГА1
@@ -306,8 +309,6 @@ def main():
     if not dga2.synchronized:
         tqdm.write(f'За {Config.sim_time}с синхронизация НЕ наступила.')
     tqdm.write(f'{"_" * 100}\nРасчеты заняли {(datetime.now() - start).seconds} с')
-    # print(f'D_PHI (атрибут класса): StartingDGA.d_phi = {StartingDGA.d_phi}')
-    # print(f'D_PHI (атрибут экземпляра dga2): dga2.d_phi = {dga2.d_phi}')
 
     # Инициализация графиков и координатных сеток
     fig1: Figure = plt.figure(figsize=(7, 4), facecolor='#D3D3D3')
@@ -378,19 +379,11 @@ def main():
     ax4.text(-2.5, -30, f'φ0 ДГА1 = {StartingDGA.convert_angle(Config.phi0)}°')
 
     # Настройка меток осей
-    # ax1.yaxis.set_major_locator(MultipleLocator(0.2))
-    # ax1.xaxis.set_major_locator(MultipleLocator(1))
     ax2.yaxis.set_major_locator(FixedLocator([-Config.amplitude, 0, Config.amplitude]))
-    # ax2.xaxis.set_major_locator(MultipleLocator(1))
-    # ax3.yaxis.set_major_locator(MultipleLocator(0.2))
-    # ax3.xaxis.set_major_locator(MultipleLocator(1))
-    # ax4.yaxis.set_major_locator(MultipleLocator(20))
-    # ax4.xaxis.set_major_locator(MultipleLocator(1))
 
     plt.show()
 
 
 if __name__ == '__main__':
     random.seed(Config.seed_value)
-    # random.seed(6789)
     main()
