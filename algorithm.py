@@ -295,7 +295,7 @@ def main():
     tqdm.write(f'Регулирование фазового сдвига: {"да" if Config.f_control else "нет"}')
     tqdm.write(f'φ0 ДГА1 = {StartingDGA.convert_angle(Config.phi0)}°')
 
-    for global_t in tqdm(DieselGenerator.x_axis, desc='Симуляция', ncols=110):
+    for global_t in tqdm(DieselGenerator.x_axis, desc='Симуляция', ncols=100):
         dga1.generate_frequency(global_t)           # генерация случайной частоты ДГА1
         dga1.calc_instant(global_time=global_t)     # расчет u1
         dga1.calculate_frequency()                  # расчет частоты ДГА1
