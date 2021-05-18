@@ -316,32 +316,25 @@ def main():
     ax4: Axes = fig2.add_subplot(212)
 
     # Построение графиков
-    ax1.plot(DieselGenerator.x_axis, dga1.f1_calc, label='f1 рассчитанная', color='#B22222')
-    ax1.plot(DieselGenerator.x_axis, dga1.f1_rand, '--', label='f1 сгенерированная', alpha=0.5, color='#00008B')
+    for ax in [ax1, ax3]:
+        ax.plot(DieselGenerator.x_axis, dga1.f1_calc, '--', label='f1 рассчитанная', color='#B22222')
+        ax.plot(DieselGenerator.x_axis, dga2.f2_calc, label='f2', color='#32CD32')
+        ax.plot(DieselGenerator.x_axis, dga1.f1_rand, label='f1 сгенерированная', alpha=0.45, color='#00008B')
     ax2.plot(DieselGenerator.x_axis, dga1.u, '--', label='u ДГА1', color='#FF4500')
     ax2.plot(DieselGenerator.x_axis, dga2.u, label='u ДГА2', alpha=0.5, color='#32CD32')
-    ax3.plot(DieselGenerator.x_axis, dga1.f1_calc, '--', label='f1 рассчитанная', color='#B22222')
-    ax3.plot(DieselGenerator.x_axis, dga2.f2_calc, label='f2', color='#32CD32')
-    ax3.plot(DieselGenerator.x_axis, dga1.f1_rand, label='f1 сгенерированная', alpha=0.35, color='#00008B')
     ax4.plot(DieselGenerator.x_axis, dga2.phase_shifts, label='Δφ', color='#4682B4')
 
     # Установка границ
     ax2.set_ylim(-200 * Config.amplitude, 200 * Config.amplitude)
     ax4.set_ylim(-180, 180)
-    ax1.set_xlim(0, Config.sim_time)
-    ax2.set_xlim(0, Config.sim_time)
-    ax3.set_xlim(0, Config.sim_time)
-    ax4.set_xlim(0, Config.sim_time)
+    for ax in [ax1, ax2, ax3, ax4]:
+        ax.set_xlim(0, Config.sim_time)
 
     # Сетка, легенда, подписи осей
-    ax1.grid()
-    ax2.grid()
-    ax3.grid()
-    ax4.grid()
-    ax1.legend(facecolor='#D3D3D3', edgecolor='#000000', loc='best')
-    ax2.legend(facecolor='#D3D3D3', edgecolor='#000000', loc='best')
-    ax3.legend(facecolor='#D3D3D3', edgecolor='#000000', loc='best')
-    ax4.legend(facecolor='#D3D3D3', edgecolor='#000000', loc='best')
+    for ax in [ax1, ax2, ax3, ax4]:
+        ax.grid()
+        ax.legend(facecolor='#D3D3D3', edgecolor='#000000', loc='best')
+
     ax1.set_xlabel('t, с', size=16)
     ax1.set_ylabel('f, Гц', rotation='horizontal', ha='right', size=16)
     ax2.set_xlabel('t, с', size=16)
@@ -352,21 +345,14 @@ def main():
     ax4.set_ylabel('Δφ, °', rotation='horizontal', ha='right', size=16)
 
     # Отрисовка линии в момент синхронизации
-    ax1.axvline(x=dga2.synchro_time, color='#000000', alpha=0.3, linestyle='--')
-    ax2.axvline(x=dga2.synchro_time, color='#000000', alpha=0.3, linestyle='--')
-    ax3.axvline(x=dga2.synchro_time, color='#000000', alpha=0.3, linestyle='--')
-    ax4.axvline(x=dga2.synchro_time, color='#000000', alpha=0.3, linestyle='--')
+    for ax in [ax1, ax2, ax3, ax4]:
+        ax.axvline(x=dga2.synchro_time, color='#000000', alpha=0.3, linestyle='--')
 
     if Config.enable_fill:
         # Заливка областей до и после синхронизации
-        ax1.axvspan(xmin=0, xmax=dga2.synchro_time, color='#8B0000', alpha=0.1)
-        ax1.axvspan(xmin=dga2.synchro_time, xmax=Config.sim_time, color='#006400', alpha=0.1)
-        ax2.axvspan(xmin=0, xmax=dga2.synchro_time, color='#8B0000', alpha=0.1)
-        ax2.axvspan(xmin=dga2.synchro_time, xmax=Config.sim_time, color='#006400', alpha=0.1)
-        ax3.axvspan(xmin=0, xmax=dga2.synchro_time, color='#8B0000', alpha=0.1)
-        ax3.axvspan(xmin=dga2.synchro_time, xmax=Config.sim_time, color='#006400', alpha=0.1)
-        ax4.axvspan(xmin=0, xmax=dga2.synchro_time, color='#8B0000', alpha=0.1)
-        ax4.axvspan(xmin=dga2.synchro_time, xmax=Config.sim_time, color='#006400', alpha=0.1)
+        for ax in [ax1, ax2, ax3, ax4]:
+            ax.axvspan(xmin=0, xmax=dga2.synchro_time, color='#8B0000', alpha=0.1)
+            ax.axvspan(xmin=dga2.synchro_time, xmax=Config.sim_time, color='#006400', alpha=0.1)
 
     ax3.fill_between(DieselGenerator.x_axis, dga2.f2_calc, dga1.f1_calc,
                      color='#DCDCDC', alpha=0.65, where=(DieselGenerator.x_axis < dga2.synchro_time))
