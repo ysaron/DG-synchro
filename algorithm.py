@@ -24,7 +24,7 @@ class Config:
         with open('config.yaml') as f:
             cfg = yaml.safe_load(f)
 
-        assert type(cfg['f_jump_max']) == float, 'Значение скачка частоты должно быть числом с плавающей точкой'
+        assert type(cfg['f_jump_max']) in [float, int], 'Значение скачка частоты должно быть числом'
         assert type(cfg['f_jump_duration_min']) in [int, float], 'Продолжительность скачка должна быть числом'
         assert type(cfg['f_jump_duration_max']) in [int, float], 'Продолжительность скачка должна быть числом'
         assert cfg['f_jump_duration_min'] > 0, 'Продолжительность скачка должна быть положительным числом'
