@@ -96,13 +96,13 @@ class DieselGenerator:
         self.frequency = freq
         self.phase_0 = phase * np.pi / 180                  # перевод фазы в радианы
         self.instant = 0.0                                  # мгновенное значение напряжения
-        self.is_positive: bool = Config.phi0 > 0            # флаг полярности напряжения в данный момент времени
+        self.__is_positive: bool = Config.phi0 > 0          # флаг полярности напряжения в данный момент времени
         self.zero_transition: bool = False                  # флаг перехода минус-плюс в данный момент времени
         self.zero_transition_times = deque([], maxlen=2)    # хранение последнего и пред. моментов перехода минус-плюс
         self.u = []                                         # список мгновенных значений напряжения генератора
-        self.section_t: float = 0.0      # локальное время текущей части синусоиды (для расчета после изменения частоты)
+        self.__section_t: float = 0.0       # локальное время текущей части синусоиды (для расчета после скачка)
         self.frequency_changed: bool = False
-        self.previous_f = freq           # значение частоты напряжения ДГА в предыдущий момент времени
+        self.previous_f = freq              # значение частоты напряжения ДГА в предыдущий момент времени
 
     def calc_instant(self, global_time: float):
         """
@@ -111,21 +111,21 @@ class DieselGenerator:
         """
 
         if self.frequency_changed:
-            self.phase_0 = 2 * np.pi * self.previous_f * self.section_t + self.phase_0
-            self.section_t = 0.0
+            self.phase_0 = 2 * np.pi * self.previous_f * self.__section_t + self.phase_0
+            self.__section_t = 0.0
 
         # округление, т.к. проблема точности вычисления float иногда приводит к числам в -16 степени вместо 0
-        self.instant = self.amplitude * np.sin(2 * np.pi * self.frequency * self.section_t + self.phase_0).round(10)
+        self.instant = self.amplitude * np.sin(2 * np.pi * self.frequency * self.__section_t + self.phase_0).round(10)
 
-        self.section_t += Config.step
+        self.__section_t += Config.step
         self.__catch_zero_transition(global_time)
         self.u.append(self.instant)
 
     def __catch_zero_transition(self, t: float):
         """ Устанавливает флаги для отслеживания переходов минус-плюс синусоиды """
 
-        self.zero_transition = (not self.is_positive) and self.instant >= 0
-        self.is_positive = self.instant >= 0
+        self.zero_transition = (not self.__is_positive) and self.instant >= 0
+        self.__is_positive = self.instant >= 0
 
         # Сохранение времени перехода через 0
         if self.zero_transition:
@@ -139,10 +139,10 @@ class WorkingDGA(DieselGenerator):
 
     def __init__(self, ampl: float, freq: float, phase: float):
         super().__init__(ampl, freq, phase)
-        self.deltas_freq = Config.frequency_jump_values
-        self.event_durations = Config.frequency_jump_durations
-        self.event_list: list[Event] = []   # список активных скачков частоты
-        self.jump: bool = False             # флаг скачкообразного изменения частоты в данный момент времени
+        self.__deltas_freq = Config.frequency_jump_values
+        self.__event_durations = Config.frequency_jump_durations
+        self.__event_list: list[Event] = []   # список активных скачков частоты
+        self.__jump: bool = False             # флаг скачкообразного изменения частоты в данный момент времени
         self.calculated_frequency = Config.utility_frequency
         self.f1_rand = []       # значения случайно генерируемой частоты напряжения ДГА1
         self.f1_calc = []       # значения рассчитываемой частоты напряжения ДГА1
@@ -156,8 +156,8 @@ class WorkingDGA(DieselGenerator):
         jump = random.choices([True, False], weights=[1, 1 / Config.jump_probability])[0]
 
         # Определение списков завершающихся и еще активных скачков
-        ended_events: list[Event] = [item for item in self.event_list if item.end_t == global_time]
-        self.event_list = [item for item in self.event_list if item.end_t != global_time]
+        ended_events: list[Event] = [item for item in self.__event_list if item.end_t == global_time]
+        self.__event_list = [item for item in self.__event_list if item.end_t != global_time]
 
         # Завершение скачков
         for item in ended_events:
@@ -165,10 +165,10 @@ class WorkingDGA(DieselGenerator):
 
         if jump:
             # Определение параметров скачка частоты (чем сильнее скачок - тем меньше его вероятность)
-            weights = (Config.f_jump_max + 0.1 - abs(self.deltas_freq)) * 10
-            delta_f = random.choices(self.deltas_freq, weights=weights)[0]
-            event = Event(delta_f=delta_f, end_t=global_time + random.choice(self.event_durations))
-            self.event_list.append(event)
+            weights = (Config.f_jump_max + 0.1 - abs(self.__deltas_freq)) * 10
+            delta_f = random.choices(self.__deltas_freq, weights=weights)[0]
+            event = Event(delta_f=delta_f, end_t=global_time + random.choice(self.__event_durations))
+            self.__event_list.append(event)
             self.frequency += event.delta_f
 
             # Ограничение частоты
@@ -182,8 +182,8 @@ class WorkingDGA(DieselGenerator):
             jump_back = True
         else:
             jump_back = False
-        self.jump = jump or jump_back
-        self.frequency_changed = True if self.jump else False
+        self.__jump = jump or jump_back
+        self.frequency_changed = True if self.__jump else False
 
         self.f1_rand.append(self.frequency)
 
@@ -212,35 +212,35 @@ class StartingDGA(DieselGenerator):
         self.f2_calc = []               # значения частоты напряжения ДГА2
         self.d_phi = - Config.phi0
         self.phase_shifts = []          # сдвиги фаз ДГА2 относительно ДГА1
-        self.deflection = Deflection(delta_f=0, end_t=0)    # отклонения частоты ДГА2 с целью регулировки сдвига
+        self.__deflection = Deflection(delta_f=0, end_t=0)    # отклонения частоты ДГА2 с целью регулировки сдвига
         self.synchronized: bool = False     # флаг состояния системы
         self.synchro_time = Config.sim_time
 
     def calculate_deflection(self, global_t: float):
         """ Расчет отклонения частоты f2 для достижения синхронизации """
-        k = 0.03    # экспериментально полученный коэффициент для расчета времени отклонения f2
+        k = 0.0285    # экспериментально полученный коэффициент для расчета времени отклонения f2
         if 0 <= self.d_phi <= 180:
             delta_f = 0.1
             end_t = self.d_phi * k + global_t
         else:
             delta_f = -0.1
             end_t = -self.d_phi * k + global_t
-        self.deflection = Deflection(delta_f=delta_f, end_t=round(end_t, 2))
+        self.__deflection = Deflection(delta_f=delta_f, end_t=round(end_t, 2))
         tqdm.write(
-            f'\nРегулирование сдвига: {round(self.d_phi, 1)}°\t|\tВводится отклонение f2: {self.deflection.delta_f} Гц'
-            f'; до момента времени: {self.deflection.end_t} с\n{"-" * 100}')
+            f'\nРегулирование сдвига: {round(self.d_phi, 1)}°\t|\tВводится отклонение f2: {self.__deflection.delta_f} Гц'
+            f'; до момента времени: {self.__deflection.end_t} с\n{"-" * 100}')
 
     def calculate_frequency(self, w_dga: WorkingDGA, current_time: float):
         """ Рассчитывает частоту f2 в данный момент времени """
 
         self.previous_f = self.frequency  # сохранение предыдущего значения частоты
 
-        if current_time == self.deflection.end_t:
-            self.deflection = Deflection(0, self.deflection.end_t)  # обнуление отклонения, f2 --> f1
+        if current_time == self.__deflection.end_t:
+            self.__deflection = Deflection(0, self.__deflection.end_t)  # обнуление отклонения, f2 --> f1
 
         if all([not self.synchronized,
-                current_time >= self.deflection.end_t + 0.1,
-                self.deflection.delta_f == 0,
+                current_time >= self.__deflection.end_t + 0.1,
+                self.__deflection.delta_f == 0,
                 Config.f_control]):
             # если синхронизация не наступила и регулировки в данный момент нет - снова регулируем f2
             self.calculate_deflection(current_time)
@@ -250,7 +250,7 @@ class StartingDGA(DieselGenerator):
                 # после наступления синхронизации частота f2 изменяется синхронно с f1
                 self.frequency = w_dga.frequency
             else:
-                self.frequency = w_dga.f1_calc[-50] + self.deflection.delta_f
+                self.frequency = w_dga.f1_calc[-50] + self.__deflection.delta_f
         except IndexError:
             self.frequency = Config.utility_frequency
 
