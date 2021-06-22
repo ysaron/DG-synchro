@@ -1,12 +1,12 @@
 import numpy as np
-import random
-from collections import namedtuple, deque
 import matplotlib
 import matplotlib.pyplot as plt
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 from matplotlib.ticker import FixedLocator
 from datetime import datetime
+import random
+from collections import namedtuple, deque
 from tqdm import tqdm
 import yaml
 import sys
@@ -20,6 +20,8 @@ Deflection = namedtuple('Deflection', ['delta_f', 'end_t'])
 class Config:
     """ Оболочка файла конфигурации с контролем корректности введенных значений """
 
+    farewell_msg = 'Enter - закрыть окно\n'
+
     try:
         with open('config.yaml') as f:
             cfg = yaml.safe_load(f)
@@ -29,9 +31,9 @@ class Config:
         assert type(cfg['f_jump_duration_max']) in [int, float], 'Продолжительность скачка должна быть числом'
         assert cfg['f_jump_duration_min'] > 0, 'Продолжительность скачка должна быть положительным числом'
         assert cfg['f_jump_duration_max'] > 0, 'Продолжительность скачка должна быть положительным числом'
-        assert type(cfg['jump_probability']) == float, 'Вероятность должна быть числом с плавающей точкой'
+        assert type(cfg['jump_probability']) is float, 'Вероятность должна быть числом с плавающей точкой'
         assert 0 < cfg['jump_probability'] < 1, 'Вероятность должна находиться в диапазоне от 0 до 1'
-        assert type(cfg['step']) == float, 'Временной шаг должен быть числом с плавающей точкой'
+        assert type(cfg['step']) is float, 'Временной шаг должен быть числом с плавающей точкой'
         assert cfg['step'] <= 0.00002, '0.00002с - максимально возможное значение временного шага'
         assert type(cfg['simulation_time']) in [int, float], 'Время симуляции должно быть числом'
         assert cfg['simulation_time'] > 0, 'Время симуляции должно быть положительным числом'
@@ -47,9 +49,9 @@ class Config:
         assert type(cfg['f_min']) in [int, float], 'Значение граничной частоты должно быть числом'
         assert cfg['f_max'] > 50.5, 'Верхняя граница частоты должна быть больше 50.5 Гц'
         assert cfg['f_min'] < 49.5, 'Нижняя граница частоты должна быть меньше 49.5 Гц'
-        assert type(cfg['RNG_seed']) == int or cfg['RNG_seed'] is None, 'Порождающий элемент ГСЧ - целое число или null'
-        assert type(cfg['control']) == bool, 'control может быть равен true или false'
-        assert type(cfg['enable_fill']) == bool, 'enable_fill может быть равен true или false'
+        assert type(cfg['RNG_seed']) is int or cfg['RNG_seed'] is None, 'Порождающий элемент ГСЧ - целое число или null'
+        assert type(cfg['control']) is bool, 'control может быть равен true или false'
+        assert type(cfg['enable_fill']) is bool, 'enable_fill может быть равен true или false'
 
         utility_frequency = cfg['utility_frequency']
         f_jump_max = abs(cfg['f_jump_max'])
@@ -68,11 +70,15 @@ class Config:
         enable_fill = cfg['enable_fill']
     except FileNotFoundError:
         print('Файл "config.yaml" в текущей директории не обнаружен')
-        input('Enter - закрыть окно\n')
+        input(farewell_msg)
+        sys.exit()
+    except KeyError:
+        print('Ошибочный ключ. Рекомендуется вернуться к предыдущей версии файла "config.yaml"')
+        input(farewell_msg)
         sys.exit()
     except AssertionError as e:
         print(f'Ошибка конфигурации: {e}')
-        input('Enter - закрыть окно\n')
+        input(farewell_msg)
         sys.exit()
 
 
@@ -365,6 +371,7 @@ def main():
     ax2.yaxis.set_major_locator(FixedLocator([-Config.amplitude, 0, Config.amplitude]))
 
     plt.show()
+    input(Config.farewell_msg)
 
 
 if __name__ == '__main__':
