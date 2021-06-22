@@ -178,10 +178,7 @@ class WorkingDGA(DieselGenerator):
                 self.frequency = Config.f_min
 
         # Выявление факта изменения частоты
-        if ended_events:
-            jump_back = True
-        else:
-            jump_back = False
+        jump_back = True if ended_events else False
         self.__jump = jump or jump_back
         self.frequency_changed = True if self.__jump else False
 
@@ -227,8 +224,8 @@ class StartingDGA(DieselGenerator):
             end_t = -self.d_phi * k + global_t
         self.__deflection = Deflection(delta_f=delta_f, end_t=round(end_t, 2))
         tqdm.write(
-            f'\nРегулирование сдвига: {round(self.d_phi, 1)}°\t|\tВводится отклонение f2: {self.__deflection.delta_f} Гц'
-            f'; до момента времени: {self.__deflection.end_t} с\n{"-" * 100}')
+            f'\nРегулирование сдвига: {round(self.d_phi, 1)}°\t|\tВводится отклонение f2: {self.__deflection.delta_f} '
+            f'Гц до момента времени: {self.__deflection.end_t} с\n{"-" * 100}')
 
     def calculate_frequency(self, w_dga: WorkingDGA, current_time: float):
         """ Рассчитывает частоту f2 в данный момент времени """
