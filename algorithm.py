@@ -9,8 +9,8 @@ import random
 from collections import namedtuple, deque
 from tqdm import tqdm
 import yaml
-import sys
-
+from sys import exit
+from math import isclose
 matplotlib.use(backend='Qt5Agg')
 
 Event = namedtuple('Event', ['delta_f', 'end_t'])
@@ -71,15 +71,15 @@ class Config:
     except FileNotFoundError:
         print('Файл "config.yaml" в текущей директории не обнаружен')
         input(farewell_msg)
-        sys.exit()
+        exit()
     except KeyError:
         print('Ошибочный ключ. Рекомендуется вернуться к предыдущей версии файла "config.yaml"')
         input(farewell_msg)
-        sys.exit()
+        exit()
     except AssertionError as e:
         print(f'Ошибка конфигурации: {e}')
         input(farewell_msg)
-        sys.exit()
+        exit()
 
 
 class DieselGenerator:
@@ -271,7 +271,7 @@ class StartingDGA(DieselGenerator):
 
         self.d_phi = self.convert_angle(self.d_phi)
         self.phase_shifts.append(self.d_phi)
-        if all([w_dga.calculated_frequency == self.frequency,
+        if all([isclose(w_dga.calculated_frequency, self.frequency, rel_tol=3e-05),
                 -0.3 < self.d_phi < 0.3,
                 not self.synchronized]):
             self.synchronized = True
@@ -309,6 +309,13 @@ def main():
     if not dga2.synchronized:
         tqdm.write(f'За {Config.sim_time} с синхронизация НЕ наступила.')
     tqdm.write(f'{"_" * 100}\nРасчеты заняли {(datetime.now() - start).seconds} с')
+
+    dga1.f1_calc = np.array(dga1.f1_calc, dtype='float32')
+    dga2.f2_calc = np.array(dga2.f2_calc, dtype='float32')
+    dga1.f1_rand = np.array(dga1.f1_rand, dtype='float32')
+    dga1.u = np.array(dga1.u, dtype='float32')
+    dga2.u = np.array(dga2.u, dtype='float32')
+    dga2.phase_shifts = np.array(dga2.phase_shifts, dtype='float32')
 
     # Инициализация графиков и координатных сеток
     fig1: Figure = plt.figure(figsize=(7, 4), facecolor='#D3D3D3')
