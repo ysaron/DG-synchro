@@ -26,32 +26,32 @@ class Config:
         with open('config.yaml') as f:
             cfg = yaml.safe_load(f)
 
-        assert type(cfg['f_jump_max']) in [float, int], 'Значение скачка частоты должно быть числом'
-        assert type(cfg['f_jump_duration_min']) in [int, float], 'Продолжительность скачка должна быть числом'
-        assert type(cfg['f_jump_duration_max']) in [int, float], 'Продолжительность скачка должна быть числом'
+        assert isinstance(cfg['f_jump_max'], (float, int)), 'Значение скачка частоты должно быть числом'
+        assert isinstance(cfg['f_jump_duration_min'], (float, int)), 'Продолжительность скачка должна быть числом'
+        assert isinstance(cfg['f_jump_duration_max'], (float, int)), 'Продолжительность скачка должна быть числом'
         assert cfg['f_jump_duration_min'] > 0, 'Продолжительность скачка должна быть положительным числом'
         assert cfg['f_jump_duration_max'] > 0, 'Продолжительность скачка должна быть положительным числом'
-        assert type(cfg['jump_probability']) is float, 'Вероятность должна быть числом с плавающей точкой'
+        assert isinstance(cfg['jump_probability'], float), 'Вероятность должна быть числом с плавающей точкой'
         assert 0 < cfg['jump_probability'] < 1, 'Вероятность должна находиться в диапазоне от 0 до 1'
-        assert type(cfg['step']) is float, 'Временной шаг должен быть числом с плавающей точкой'
+        assert isinstance(cfg['step'], float), 'Временной шаг должен быть числом с плавающей точкой'
         assert cfg['step'] <= 0.00002, '0.00002с - максимально возможное значение временного шага'
-        assert type(cfg['simulation_time']) in [int, float], 'Время симуляции должно быть числом'
+        assert isinstance(cfg['simulation_time'], (float, int)), 'Время симуляции должно быть числом'
         assert cfg['simulation_time'] > 0, 'Время симуляции должно быть положительным числом'
-        assert type(cfg['U_RMS']) in [int, float], 'Напряжение должно быть числом'
-        assert type(cfg['phi0_min']) in [int, float], 'Значение фазы должно быть числом'
-        assert type(cfg['phi0_max']) in [int, float], 'Значение фазы должно быть числом'
+        assert isinstance(cfg['U_RMS'], (float, int)), 'Напряжение должно быть числом'
+        assert isinstance(cfg['phi0_min'], (float, int)), 'Значение фазы должно быть числом'
+        assert isinstance(cfg['phi0_max'], (float, int)), 'Значение фазы должно быть числом'
         assert 0 <= cfg['phi0_min'] < 360, 'phi0 должно находиться в диапазоне 0:359 ' \
                                            '(программно переводится в -180:+180)'
         assert 0 <= cfg['phi0_max'] < 360, 'phi0 должно находиться в диапазоне 0:359 ' \
                                            '(программно переводится в -180:+180)'
         assert cfg['phi0_min'] <= cfg['phi0_max'], 'phi0_min не может быть больше phi0_max'
-        assert type(cfg['f_max']) in [int, float], 'Значение граничной частоты должно быть числом'
-        assert type(cfg['f_min']) in [int, float], 'Значение граничной частоты должно быть числом'
+        assert isinstance(cfg['f_max'], (float, int)), 'Значение граничной частоты должно быть числом'
+        assert isinstance(cfg['f_min'], (float, int)), 'Значение граничной частоты должно быть числом'
         assert cfg['f_max'] > 50.5, 'Верхняя граница частоты должна быть больше 50.5 Гц'
         assert cfg['f_min'] < 49.5, 'Нижняя граница частоты должна быть меньше 49.5 Гц'
-        assert type(cfg['RNG_seed']) is int or cfg['RNG_seed'] is None, 'Порождающий элемент ГСЧ - целое число или null'
-        assert type(cfg['control']) is bool, 'control может быть равен true или false'
-        assert type(cfg['enable_fill']) is bool, 'enable_fill может быть равен true или false'
+        assert isinstance(cfg['RNG_seed'], int) or cfg['RNG_seed'] is None, 'Порождающий элемент ГСЧ - int или null'
+        assert isinstance(cfg['control'], bool), 'control может быть равен true или false'
+        assert isinstance(cfg['enable_fill'], bool), 'enable_fill может быть равен true или false'
 
         utility_frequency = cfg['utility_frequency']
         f_jump_max = abs(cfg['f_jump_max'])
@@ -96,7 +96,7 @@ class DieselGenerator:
         self.frequency = freq
         self.phase_0 = phase * np.pi / 180                  # перевод фазы в радианы
         self.instant = 0.0                                  # мгновенное значение напряжения
-        self.__is_positive: bool = Config.phi0 > 0          # флаг полярности напряжения в данный момент времени
+        self.__is_positive: bool = True          # флаг полярности напряжения в данный момент времени
         self.zero_transition: bool = False                  # флаг перехода минус-плюс в данный момент времени
         self.zero_transition_times = deque([], maxlen=2)    # хранение последнего и пред. моментов перехода минус-плюс
         self.u = []                                         # список мгновенных значений напряжения генератора
